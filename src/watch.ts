@@ -1,9 +1,10 @@
 ///<reference path="../typings/node/node.d.ts" />
 import fs = require('fs');
-import  path = require('./path');
+import path = require("./rpath");
+import Promise from "ts-promise";
 
 
-function dumpError(err) {
+function dumpError(err: any) {
     if (typeof err === 'object') {
         if (err.message) {
             console.log('\nMessage: ' + err.message)
@@ -17,72 +18,110 @@ function dumpError(err) {
         console.log('dumpError :: argument is not an object:', err);
     }
 }
-var Watch = function() {
-    var files = {};
-    var watchers = {};
-    var queue = [];
-    var timeout = null;
-    var used = {
-        files: {}
-    };
+interface IFiles { [filename: string]: string };
 
-    function notifyDebounced() {
-        clearTimeout(timeout);
-        timeout = setTimeout(processQueue, 50);
+interface IData {
+    files: IFiles;
+    getFile: { (fn: string): string };
+};
+
+interface ICallback {
+    (data: IData): Thenable<IData>
+}
+
+class Pipe {
+    private queue: ICallback[] = [];
+    private files: IFiles = {};
+    private usedFiles: { [filename: string]: boolean } = {};
+    private watchers: { [filename: string]: fs.FSWatcher } = {};
+    private timeout: NodeJS.Timer;
+    private queueInProcess = false;
+    private needProcessQueue = false;
+    constructor() {
+        this.processQueueOnNextTick();
+    }
+    private processQueueOnNextTick() {
+        process.nextTick(() => {
+            this.processQueue();
+        })
+    }
+    private removeUnusedFiles() {
+        for (var fn in this.watchers) {
+            if (!(fn in this.usedFiles)) {
+                this.watchers[fn].close();
+                delete this.watchers[fn];
+                delete this.files[fn];
+            }
+        }
+        this.usedFiles = {}
     }
 
-    function loadFile(fn) {
+    private loadFile(fn) {
         if (!path.fileExists(fn)) {
             var err = 'File not exists:' + fn;
             console.log(err);
             throw err;
         };
-        files[fn] = fs.readFileSync(fn).toString();
+        this.files[fn] = fs.readFileSync(fn).toString();
     }
 
-    function getFile(fn) {
-        if (!(fn in files)) {
-            loadFile(fn);
+    private getFile(fn: string) {
+        if (!(fn in this.files)) {
+            this.loadFile(fn);
         }
-        if (!(fn in watchers)) {
-            watchers[fn] = fs.watch(fn, function(evt, evtfn) {
+        if (!(fn in this.watchers)) {
+            this.watchers[fn] = fs.watch(fn, (evt, evtfn) => {
                 if (evt === 'change') {
-                    loadFile(fn);
-                    notifyDebounced();
+                    this.loadFile(fn);
+                    this.processQueueOnNextTick();
                 }
             });
         }
-        used.files[fn] = 1;
-        return files[fn];
+        this.usedFiles[fn] = true;
+        return this.files[fn];
     }
-
-    function removeUnusedFiles() {
-        for (var fn in watchers) {
-            if (!(fn in used.files)) {
-                watchers[fn].close();
-                delete watchers[fn];
-                delete files[fn];
+    private processQueueItem(i: number, data: IData): Promise<IData> {
+        return new Promise<IData>((resolve, reject) => {
+            if (i >= this.queue.length) {
+                resolve(data);
             }
+            this.queue[i](data).then((v) => {
+                resolve(this.processQueueItem(i + 1, v));
+            });
+        });
+    }
+    private processQueue() {
+        if (this.queueInProcess) {
+            this.needProcessQueue = true;
+            return;
         }
-        used.files = {};
+        this.queueInProcess = true;
+        this.needProcessQueue = false;
+        this.removeUnusedFiles();
+        this.processQueueItem(0, {
+            files: {},
+            getFile: (fn) => this.getFile(fn)
+        })
+            .catch((v) => {
+                dumpError(v);
+            })
+            .finally(() => {
+                this.queueInProcess = false;
+                if (this.needProcessQueue) {
+                    this.processQueueOnNextTick();
+                }
+
+            });
+    }
+    pipe(cb: ICallback): Pipe {
+        this.queue.push(cb);
+        return this;
     }
 
-    function processQueue() {
-        try {
-            removeUnusedFiles();
-            queue.reduce(function(p, c) {
-                return c(p);
-            }, getFile);
-        } catch (e) {
-            dumpError(e)
-        }
-    }
-    process.nextTick(processQueue);
-    return {
-        pipe: function(cb) {
-            queue.push(cb);
-            return this;
-        }
-    };
-};
-exports = Watch;
+}
+function watch(): Pipe {
+    return new Pipe();
+}
+
+
+export =watch;
