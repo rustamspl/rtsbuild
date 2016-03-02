@@ -6,9 +6,9 @@ import Promise from 'ts-promise';
 import * as watch from './watch';
 
 import path = require('./rpath');
-import fs = require('fs');
+//import fs = require('fs');
 
-var def=fs.readFileSync(path.dirname(__dirname)+'/data/define.js').toString();
+//var def=fs.readFileSync(path.dirname(__dirname)+'/data/define.js').toString();
 
 
 function compile(opts: ICompilatorOptions, d: watch.IData) {
@@ -53,9 +53,10 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
         }
         function writeFile(fileName, content) {
             var files:watch.IFiles={};
+            var deffn=path.relative('.',path.dirname(__dirname) + '/data/define.js');
            // console.log('writeFile',fileName);
             var fn=path.relative('.', fileName)
-            files[fn]=def+content;
+            files[fn]= d.getFile(deffn)    +content+";__get_module__(__entry__);";
             resolve({
                files:files,
                getFile:d.getFile 
