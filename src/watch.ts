@@ -58,7 +58,7 @@ export class Pipe {
 
     private loadFile(fn) {
         if (!path.fileExists(fn)) {
-            var err = 'File not exists:' + fn;
+            var err = 'Watcher:File not exists:' + fn;
             console.log(err);
             throw err;
         };

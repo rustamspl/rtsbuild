@@ -32,6 +32,7 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
             //const sourceText = ts.sys.readFile(fileName);
             console.log('ts.sys.readFile',fileName);
             const sourceText = d.getFile(path.relative('.', fileName));
+           // console.log('ts.sys.readFile.sourceText',sourceText);
             return sourceText !== undefined ? ts.createSourceFile(fileName, sourceText, languageVersion) : undefined;
         }
 
@@ -60,7 +61,7 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
         }
         const host = {
             getSourceFile,
-            getDefaultLibFileName: () => "lib.d.ts",
+            getDefaultLibFileName: () => ts.getDefaultLibFilePath(options),
             writeFile,//: (fileName, content) => ts.sys.writeFile(fileName, content)
             getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
             getCanonicalFileName: fileName => ts.sys.useCaseSensitiveFileNames ? fileName : fileName.toLowerCase(),
@@ -68,7 +69,7 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
             useCaseSensitiveFileNames: () => ts.sys.useCaseSensitiveFileNames,
             fileExists,
             readFile,
-
+            
             resolveModuleNames
         }
 
