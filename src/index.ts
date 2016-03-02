@@ -1,2 +1,2 @@
-export import path=require("./rpath");
-import watch=require("./watch");
+export import compilator=require("./compilator");
+export import dest=require("./dest");

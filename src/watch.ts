@@ -1,7 +1,7 @@
 ///<reference path="../typings/node/node.d.ts" />
 import fs = require('fs');
-import path = require("./rpath");
-import Promise from "ts-promise";
+import path = require('./rpath');
+import Promise from 'ts-promise';
 
 
 function dumpError(err: any) {
@@ -18,18 +18,18 @@ function dumpError(err: any) {
         console.log('dumpError :: argument is not an object:', err);
     }
 }
-interface IFiles { [filename: string]: string };
+export interface IFiles { [filename: string]: string };
 
-interface IData {
+export interface IData {
     files: IFiles;
     getFile: { (fn: string): string };
 };
 
-interface ICallback {
-    (data: IData): Thenable<IData>
+export interface ICallback {
+    (data: IData): Promise<IData>|IData
 }
 
-class Pipe {
+export class Pipe {
     private queue: ICallback[] = [];
     private files: IFiles = {};
     private usedFiles: { [filename: string]: boolean } = {};
@@ -85,9 +85,15 @@ class Pipe {
             if (i >= this.queue.length) {
                 resolve(data);
             }
-            this.queue[i](data).then((v) => {
-                resolve(this.processQueueItem(i + 1, v));
-            });
+            var r=this.queue[i](data);
+            if(r instanceof Promise ){
+                r.then((v) => {
+                    resolve(this.processQueueItem(i + 1, v));
+                });
+            }else{
+                resolve(this.processQueueItem(i + 1, <IData>r));
+            }
+            
         });
     }
     private processQueue() {
@@ -117,11 +123,9 @@ class Pipe {
         this.queue.push(cb);
         return this;
     }
-
 }
-function watch(): Pipe {
+
+
+export function create(): Pipe {
     return new Pipe();
 }
-
-
-export =watch;
