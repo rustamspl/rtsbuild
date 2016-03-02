@@ -6,7 +6,9 @@ import Promise from 'ts-promise';
 import * as watch from './watch';
 
 import path = require('./rpath');
+import fs = require('fs');
 
+var def=fs.readFileSync(path.dirname(__dirname)+'/data/define.js').toString();
 
 
 function compile(opts: ICompilatorOptions, d: watch.IData) {
@@ -19,18 +21,18 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
     var p = new Promise<watch.IData>((resolve, reject) => {
 
         function fileExists(fileName: string): boolean {
-            console.log('fileExists',fileName);
+            //console.log('fileExists',fileName);
             return true;//ts.sys.fileExists(fileName);
         }
         
         function readFile(fileName: string): string {
-            console.log('readFile',fileName);
+            //console.log('readFile',fileName);
             return d.getFile(path.relative('.', fileName));
         }
 
         function getSourceFile(fileName: string, languageVersion: ts.ScriptTarget, onError?: (message: string) => void) {
             //const sourceText = ts.sys.readFile(fileName);
-            console.log('ts.sys.readFile',fileName);
+            //console.log('ts.sys.readFile',fileName);
             const sourceText = d.getFile(path.relative('.', fileName));
            // console.log('ts.sys.readFile.sourceText',sourceText);
             return sourceText !== undefined ? ts.createSourceFile(fileName, sourceText, languageVersion) : undefined;
@@ -42,7 +44,7 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
                 let result = ts.resolveModuleName(moduleName, containingFile, options, { fileExists, readFile });
 
                 if (result.resolvedModule) {
-                    console.log(moduleName, result.resolvedModule);
+                    //console.log(moduleName, result.resolvedModule);
                     return result.resolvedModule;
                 }
 
@@ -51,9 +53,9 @@ function compile(opts: ICompilatorOptions, d: watch.IData) {
         }
         function writeFile(fileName, content) {
             var files:watch.IFiles={};
-            console.log('writeFile',fileName);
+           // console.log('writeFile',fileName);
             var fn=path.relative('.', fileName)
-            files[fn]=content;
+            files[fn]=def+content;
             resolve({
                files:files,
                getFile:d.getFile 
